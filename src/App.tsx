@@ -12,6 +12,7 @@ import { effectiveBorder, measureThinBorder } from './lib/face';
 import { loadImage, readImageFile } from './lib/images';
 import { computeLayout } from './lib/layout';
 import { findCardByName, type ResolvedCard } from './lib/lookup';
+import { isReadableHost, MISSING_IMAGE, resolveCardImage } from './lib/sets';
 import { loadCards, loadSettings, sanitizeSettings, saveCards, saveSettings, settingsToJson } from './lib/storage';
 import type { Card, CropJob, CropState, Settings } from './lib/types';
 
@@ -41,6 +42,21 @@ export default function App() {
       // Anything added before the stored list arrived goes after it.
       setCards((current) => [...stored, ...current]);
       setCardsLoaded(true);
+      // Lists saved by earlier versions point at an image host that only works when the app runs
+      // on localhost. Re-point those cards at a host that works everywhere.
+      for (const card of stored) {
+        if (card.kind !== 'deck' || !card.set || !card.number || isReadableHost(card.src)) continue;
+        void resolveCardImage(card.set, card.number).then((src) => {
+          if (!live || !src) return;
+          setCards((cur) => cur.map((c) => (c.id === card.id && c.kind === 'deck' ? { ...c, src, autoBorder: undefined } : c)));
+          setFailed((f) => {
+            if (!f.has(card.id)) return f;
+            const next = new Set(f);
+            next.delete(card.id);
+            return next;
+          });
+        });
+      }
     });
     return () => {
       live = false;
@@ -55,9 +71,11 @@ export default function App() {
   const borderChecked = useRef(new Set<string>());
   useEffect(() => {
     if (!cardsLoaded) return;
-    const pending = cards.filter((c) => c.kind === 'deck' && c.autoBorder === undefined && !borderChecked.current.has(c.id));
+    // Keyed by image as well as card, so a card whose image is replaced gets measured again.
+    const key = (c: Card) => `${c.id}|${c.src}`;
+    const pending = cards.filter((c) => c.kind === 'deck' && c.autoBorder === undefined && !borderChecked.current.has(key(c)));
     for (const card of pending) {
-      borderChecked.current.add(card.id);
+      borderChecked.current.add(key(card));
       void loadImage(card.src).then((img) => {
         if (!img) return;
         let add = 0;
@@ -66,7 +84,7 @@ export default function App() {
         } catch {
           // Pixels unreadable: leave the card as it is.
         }
-        setCards((cur) => cur.map((c) => (c.id === card.id && c.kind === 'deck' ? { ...c, autoBorder: add } : c)));
+        setCards((cur) => cur.map((c) => (c.id === card.id && c.src === card.src && c.kind === 'deck' ? { ...c, autoBorder: add } : c)));
       });
     }
   }, [cards, cardsLoaded]);
@@ -103,6 +121,17 @@ export default function App() {
         text: 'No cards found in that list. Lines should look like “4 Charizard ex OBF 125” or “4 Dreepy (TWM-128_EN)”.',
       });
       return skipped;
+    }
+    // Locate each card's image, a few at a time.
+    let located = 0;
+    for (let i = 0; i < parsed.length; i += 6) {
+      setNotice({ kind: 'info', text: `Finding card images… ${located}/${parsed.length}` });
+      await Promise.all(
+        parsed.slice(i, i + 6).map(async (card) => {
+          card.src = (await resolveCardImage(card.set!, card.number!)) ?? MISSING_IMAGE;
+          located++;
+        }),
+      );
     }
     if (replace) {
       setCards([]);

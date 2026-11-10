@@ -1,12 +1,5 @@
 import type { Card, CardCategory } from './types';
 
-const IMG_BASE = 'https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci';
-
-/** PTCGL export codes that differ from the image CDN's set codes. */
-const SET_ALIASES: Record<string, string> = {
-  'PR-SV': 'SVP',
-};
-
 /** Basic energy numbers in the SVE set, keyed by type letter. */
 const ENERGY_NUMBER: Record<string, number> = { G: 1, R: 2, W: 3, L: 4, P: 5, F: 6, D: 7, M: 8 };
 const ENERGY_WORD: Record<string, string> = {
@@ -26,17 +19,6 @@ export interface ParseResult {
   /** Lines that name a card without a set and number; these need a lookup by name. */
   byName: { qty: number; name: string; category?: CardCategory }[];
   skipped: string[];
-}
-
-export function cardImageUrl(set: string, number: string): string {
-  const code = SET_ALIASES[set.toUpperCase()] ?? set.toUpperCase();
-  const num = /^\d+$/.test(number) ? number.padStart(3, '0') : number.toUpperCase();
-  return `${IMG_BASE}/${code}/${code}_${num}_R_EN_LG.png`;
-}
-
-/** Full-size scan for printing; the preview uses the lighter _LG variant. */
-export function printImageUrl(src: string): string | null {
-  return src.startsWith(IMG_BASE) && src.endsWith('_LG.png') ? src.replace(/_LG\.png$/, '.png') : null;
 }
 
 function basicEnergyType(name: string): string | null {
@@ -86,7 +68,8 @@ export function parseDeck(text: string): ParseResult {
       id: crypto.randomUUID(),
       name,
       qty,
-      src: cardImageUrl(set, number),
+      // Filled in by the importer once the image has been located.
+      src: '',
       kind: 'deck',
       set: set.toUpperCase(),
       number,

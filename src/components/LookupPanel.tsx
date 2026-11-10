@@ -11,19 +11,10 @@ interface Props {
 const MIN_QUERY = 2;
 
 function HitThumb({ hit }: { hit: LookupHit }) {
-  const [src, setSrc] = useState(hit.thumb);
+  const src = hit.thumb ?? fallbackThumb(hit);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    if (hit.thumb) return;
-    let live = true;
-    void fallbackThumb(hit).then((url) => live && setSrc(url));
-    return () => {
-      live = false;
-    };
-  }, [hit]);
-
-  if (!src || failed) return <span className="no-thumb">No preview</span>;
+  if (failed) return <span className="no-thumb">No preview</span>;
   return <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />;
 }
 

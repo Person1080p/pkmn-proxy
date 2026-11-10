@@ -1,5 +1,4 @@
-import { cardImageUrl } from './deck';
-import { loadImage } from './images';
+import { cardImageUrl, findCardImage, imageSetId } from './sets';
 import type { CardCategory, LookupScope } from './types';
 
 const API = 'https://api.tcgdex.net/v2/en';
@@ -72,7 +71,7 @@ export function loadSetNames(): Promise<Map<string, string>> {
 
 const setCodes = new Map<string, Promise<string | null>>();
 
-/** The official set abbreviation (e.g. sv03 → OBF), which is what deck lists and the image CDN use. */
+/** The official set abbreviation (e.g. sv03 → OBF), which is what deck lists use. */
 export function setCode(setId: string): Promise<string | null> {
   let p = setCodes.get(setId);
   if (!p) {
@@ -99,17 +98,9 @@ async function cardCategory(id: string): Promise<CardCategory | undefined> {
   }
 }
 
-/** Older sets missing from the main CDN are usually on this one, under a slightly different id scheme. */
-function fallbackImageUrl(hit: LookupHit): string {
-  const set = hit.setId.replace(/\.5$/, 'pt5').replace(/^([a-z]+)0+(\d)/, '$1$2');
-  const number = /^\d+$/.test(hit.number) ? String(parseInt(hit.number, 10)) : hit.number;
-  return `https://images.pokemontcg.io/${set}/${number}_hires.png`;
-}
-
-/** Thumbnail for hits the search API has no image for, taken from the print CDN instead. */
-export async function fallbackThumb(hit: LookupHit): Promise<string | null> {
-  const code = await setCode(hit.setId);
-  return code ? cardImageUrl(code, hit.number) : null;
+/** Thumbnail for hits the search API has no image for, taken from the print image host instead. */
+export function fallbackThumb(hit: LookupHit): string {
+  return cardImageUrl(imageSetId(hit.setId), hit.number, 'small');
 }
 
 export interface ResolvedCard {
@@ -122,16 +113,22 @@ export interface ResolvedCard {
 
 /**
  * Finds an image for a search hit that can actually be exported. The search API's own full-size
- * images can't be read cross-origin, so candidates from the print CDNs are tried in turn.
+ * images can't be read reliably from another site, so the print image hosts are used instead.
  */
 export async function resolveHit(hit: LookupHit): Promise<ResolvedCard | null> {
-  const [code, category] = await Promise.all([setCode(hit.setId), cardCategory(hit.id)]);
-  const set = code ?? hit.setId.toUpperCase();
-  const candidates = [...(code ? [cardImageUrl(code, hit.number)] : []), fallbackImageUrl(hit)];
-  for (const src of candidates) {
-    if (await loadImage(src)) return { name: hit.name, set, number: hit.number.replace(/^0+(?=\d)/, ''), src, category };
-  }
-  return null;
+  const [code, category, src] = await Promise.all([
+    setCode(hit.setId),
+    cardCategory(hit.id),
+    findCardImage([imageSetId(hit.setId)], hit.number),
+  ]);
+  if (!src) return null;
+  return {
+    name: hit.name,
+    set: code ?? hit.setId.toUpperCase(),
+    number: hit.number.replace(/^0+(?=\d)/, ''),
+    src,
+    category,
+  };
 }
 
 async function exactName(name: string, standardOnly: boolean): Promise<LookupHit[]> {

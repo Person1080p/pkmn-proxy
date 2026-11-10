@@ -1,6 +1,5 @@
 import { jsPDF } from 'jspdf';
 import JSZip from 'jszip';
-import { printImageUrl } from './deck';
 import { effectiveBorder, renderFace } from './face';
 import { loadImage } from './images';
 import { computeLayout, expandCards, guideSegments, paginate } from './layout';
@@ -73,8 +72,7 @@ async function loadAll(cards: Card[], s: Settings, onProgress: Progress) {
   for (let i = 0; i < cards.length; i += 6) {
     await Promise.all(
       cards.slice(i, i + 6).map(async (card) => {
-        const full = printImageUrl(card.src);
-        const img = (full && (await loadImage(full))) || (await loadImage(card.src));
+        const img = await loadImage(card.src);
         const border = effectiveBorder(card, s);
         images.set(
           card.id,
