@@ -112,6 +112,7 @@ input[type='color'] {
   display: flex;
   flex-direction: column;
   height: 100%;
+  height: 100dvh;
 }
 
 .topbar {
@@ -158,16 +159,29 @@ input[type='color'] {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr) 320px;
+  /* Panel widths come from the dividers, but never squeeze the preview out of a small window. */
+  grid-template-columns: min(var(--left, 320px), 32vw) 7px minmax(0, 1fr) 7px min(var(--right, 320px), 32vw);
 }
 .panel {
   background: var(--panel);
   overflow-y: auto;
-  border-right: 1px solid var(--line);
+  min-width: 0;
 }
-.panel:last-child {
-  border-right: none;
-  border-left: 1px solid var(--line);
+.resizer {
+  background: var(--line);
+  background-clip: content-box;
+  padding: 0 3px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.resizer:hover,
+.resizer:active,
+.resizer:focus-visible {
+  background-color: var(--accent);
+  outline: none;
+}
+.tabs {
+  display: none;
 }
 
 .section {
@@ -380,6 +394,8 @@ input[type='color'] {
 .preview-scroll {
   flex: 1;
   overflow: auto;
+  /* Reserve the scrollbar's space so fitting the sheet doesn't toggle it on and off. */
+  scrollbar-gutter: stable both-edges;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -489,24 +505,6 @@ input[type='color'] {
 .crop-controls .field.wide:first-child,
 .crop-controls .row {
   grid-column: 1 / -1;
-}
-
-@media (max-width: 1050px) {
-  .app {
-    height: auto;
-  }
-  .layout {
-    grid-template-columns: 1fr;
-  }
-  .panel,
-  .panel:last-child {
-    border: none;
-    border-bottom: 1px solid var(--line);
-    overflow: visible;
-  }
-  .preview {
-    height: 80vh;
-  }
 }
 
 .segmented {
@@ -733,4 +731,69 @@ input[type='color'] {
 }
 .border-size input[type='range'] {
   margin-bottom: 8px;
+}
+
+.preview-bar button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.slot {
+  touch-action: manipulation;
+}
+
+/* Narrow windows and phones: one pane at a time, switched with the tab bar. */
+@media (max-width: 820px) {
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .tabs button {
+    border: none;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    padding: 10px 4px;
+    color: var(--muted);
+  }
+  .tabs button[aria-pressed='true'] {
+    border-bottom-color: var(--accent);
+    color: var(--text);
+    font-weight: 600;
+  }
+  .layout {
+    display: block;
+  }
+  .layout > * {
+    display: none;
+    height: 100%;
+  }
+  .layout[data-tab='cards'] > .pane-cards,
+  .layout[data-tab='settings'] > .pane-settings {
+    display: block;
+  }
+  .layout[data-tab='preview'] > .pane-preview {
+    display: flex;
+  }
+  .topbar {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .topbar .stats {
+    flex-basis: 100%;
+    order: 3;
+  }
+  .topbar button {
+    padding: 6px 8px;
+  }
+  .preview-scroll {
+    padding: 12px;
+  }
+  .bar-hint {
+    display: none;
+  }
+  .lookup-results ul {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
 }

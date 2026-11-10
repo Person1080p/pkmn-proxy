@@ -1,6 +1,12 @@
 export type Unit = 'mm' | 'in';
 export type GuideStyle = 'none' | 'marks' | 'lines';
 export type LookupScope = 'standard' | 'all';
+/** Whether the preview zoom tracks the available space, and how. */
+export type PreviewFit = 'none' | 'width' | 'page';
+
+export const PANEL_MIN = 220;
+export const PANEL_MAX = 640;
+export const PANEL_DEFAULT = 320;
 export type CardCategory = 'pokemon' | 'trainer' | 'energy';
 
 /** All lengths are stored in millimetres regardless of the display unit. */
@@ -38,6 +44,10 @@ export interface Settings {
   jpegQuality: number;
   fileName: string;
   previewZoom: number;
+  previewFit: PreviewFit;
+  /** Side panel widths in px, set by dragging the dividers. */
+  leftPanelWidth: number;
+  rightPanelWidth: number;
   /** Which card pool the name lookup searches. */
   lookupScope: LookupScope;
 }
@@ -123,5 +133,8 @@ export const DEFAULT_SETTINGS: Settings = {
   jpegQuality: 0.92,
   fileName: 'proxies',
   previewZoom: 0.6,
+  previewFit: 'page',
+  leftPanelWidth: PANEL_DEFAULT,
+  rightPanelWidth: PANEL_DEFAULT,
   lookupScope: 'standard',
 };

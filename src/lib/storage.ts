@@ -1,5 +1,5 @@
 import { get, set } from 'idb-keyval';
-import { DEFAULT_SETTINGS, type Card, type Settings } from './types';
+import { DEFAULT_SETTINGS, PANEL_MAX, PANEL_MIN, type Card, type Settings } from './types';
 
 const SETTINGS_KEY = 'pkmn-proxy:settings';
 const CARDS_KEY = 'pkmn-proxy:cards';
@@ -22,6 +22,9 @@ export function sanitizeSettings(raw: unknown): Settings {
   }
   if (out.unit !== 'mm' && out.unit !== 'in') out.unit = DEFAULT_SETTINGS.unit;
   if (!['none', 'marks', 'lines'].includes(out.guides)) out.guides = DEFAULT_SETTINGS.guides;
+  if (!['none', 'width', 'page'].includes(out.previewFit)) out.previewFit = DEFAULT_SETTINGS.previewFit;
+  out.leftPanelWidth = clamp(Math.round(out.leftPanelWidth), PANEL_MIN, PANEL_MAX);
+  out.rightPanelWidth = clamp(Math.round(out.rightPanelWidth), PANEL_MIN, PANEL_MAX);
   if (out.lookupScope !== 'standard' && out.lookupScope !== 'all') out.lookupScope = DEFAULT_SETTINGS.lookupScope;
   if (out.pdfImageFormat !== 'jpeg' && out.pdfImageFormat !== 'png') out.pdfImageFormat = 'jpeg';
   for (const k of ['guideColor', 'pageBackground', 'cornerFillColor'] as const) {

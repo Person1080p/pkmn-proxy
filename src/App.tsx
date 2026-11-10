@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { BorderDialog } from './components/BorderDialog';
 import { CardsPanel } from './components/CardsPanel';
 import { DeckListPrint } from './components/DeckListPrint';
 import { CropDialog } from './components/CropDialog';
 import { Preview } from './components/Preview';
+import { Resizer } from './components/Resizer';
 import { SettingsPanel } from './components/SettingsPanel';
 import { parseDeck } from './lib/deck';
 import { downloadText, exportPdf, exportPngZip, type ExportResult } from './lib/export';
@@ -24,9 +25,12 @@ export default function App() {
   const [cropQueue, setCropQueue] = useState<CropJob[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [borderCardId, setBorderCardId] = useState<string | null>(null);
+  // On narrow screens only one of the three panes is shown at a time.
+  const [tab, setTab] = useState<'cards' | 'preview' | 'settings'>('preview');
   const [notice, setNotice] = useState<Notice | null>(null);
 
   const update = useCallback((patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch })), []);
+  const setZoom = useCallback((previewZoom: number) => update({ previewZoom }), [update]);
 
   useEffect(() => saveSettings(settings), [settings]);
 
@@ -228,8 +232,20 @@ export default function App() {
         </div>
       )}
 
-      <main className="layout">
-        <aside className="panel">
+      <nav className="tabs" aria-label="Sections">
+        {(['cards', 'preview', 'settings'] as const).map((t) => (
+          <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)}>
+            {t === 'cards' ? `Cards (${total})` : t === 'preview' ? 'Preview' : 'Settings'}
+          </button>
+        ))}
+      </nav>
+
+      <main
+        className="layout"
+        data-tab={tab}
+        style={{ '--left': `${settings.leftPanelWidth}px`, '--right': `${settings.rightPanelWidth}px` } as CSSProperties}
+      >
+        <aside className="panel pane-cards">
           <CardsPanel
             cards={cards}
             failed={failed}
@@ -256,6 +272,7 @@ export default function App() {
             }}
           />
         </aside>
+        <Resizer side="left" width={settings.leftPanelWidth} onWidth={(leftPanelWidth) => update({ leftPanelWidth })} />
         <Preview
           cards={cards}
           settings={settings}
@@ -264,9 +281,11 @@ export default function App() {
           onRemoveCopy={(id) =>
             setCards((cur) => cur.flatMap((c) => (c.id !== id ? [c] : c.qty > 1 ? [{ ...c, qty: c.qty - 1 }] : [])))
           }
-          onZoom={(z) => update({ previewZoom: z })}
+          onZoom={setZoom}
+          onFit={(previewFit) => update({ previewFit })}
         />
-        <aside className="panel">
+        <Resizer side="right" width={settings.rightPanelWidth} onWidth={(rightPanelWidth) => update({ rightPanelWidth })} />
+        <aside className="panel pane-settings">
           <SettingsPanel
             settings={settings}
             layout={layout}
